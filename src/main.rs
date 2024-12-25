@@ -1,15 +1,25 @@
 const ADDR: Ipv4Addr = Ipv4Addr::new(224, 0, 0, 251);
 use color_eyre::Result;
+use pnet::datalink::interfaces;
 use simple_dns::Packet;
 use std::net::{Ipv4Addr, UdpSocket};
+const IFACE: [&str; 1] = ["lan01"];
 
 fn main() -> Result<()> {
     let socket = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 5354))?;
     socket.join_multicast_v4(&ADDR, &Ipv4Addr::new(10, 99, 10, 161))?;
     let mut buf = [0; 1024];
+    let interfaces = interfaces();
+    let interfaces = interfaces
+        .iter()
+        .filter(|x| x.is_up() && !x.is_loopback() && !x.ips.is_empty());
+    for i in interfaces {
+        println!("{:?}", i);
+    }
+
     loop {
         match socket.recv(&mut buf) {
-            Ok(rec) => {
+            Ok(_) => {
                 let packet = Packet::parse(&buf)?;
                 println!("{:?}\n", packet);
             }
