@@ -1,42 +1,45 @@
 const ADDR: Ipv4Addr = Ipv4Addr::new(224, 0, 0, 251);
 use color_eyre::Result;
 use pnet::datalink::interfaces;
+use regex::Regex;
 use simple_dns::Packet;
 use socket2::{Domain, Protocol, Socket, Type};
-use std::{
-    io::Read,
-    net::{Ipv4Addr, SocketAddrV4, UdpSocket},
-};
-const IFACE: [&str; 1] = ["lan01"];
+use std::net::{Ipv4Addr, SocketAddrV4};
+use tokio::net::UdpSocket;
 
-fn main() -> Result<()> {
-    let mut socket = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP))?;
+#[tokio::main]
+async fn main() -> Result<()> {
+    let socket = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP))?;
+    socket.set_reuse_address(true)?;
     socket.set_reuse_port(true)?;
-    let addr = SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 5353).into();
+    let addr = SocketAddrV4::new(Ipv4Addr::new(224, 0, 0, 251), 5353).into();
     socket.bind(&addr)?;
-    socket.join_multicast_v4(&ADDR, &Ipv4Addr::new(10, 99, 10, 164))?;
+    socket.join_multicast_v4(&ADDR, &Ipv4Addr::new(10, 99, 10, 1))?;
+    //socket.set_nonblocking(true)?;
+
+    let iface_reg = Regex::new(r"^lan.*$")?;
+    let interfaces = interfaces();
+    let interfaces = interfaces.iter().filter(|x| {
+        x.is_up() && !x.is_loopback() && !x.ips.is_empty() && iface_reg.is_match(&x.name)
+    });
+    for i in interfaces {
+        println!("{:?}", i);
+    }
+
     let mut buf = [0; 1024];
+    let socket = UdpSocket::from_std(socket.into())?;
     loop {
-        match socket.read(&mut buf) {
-            Ok(_l) => {
+        match socket.recv_from(&mut buf).await {
+            Ok((_l, from)) => {
                 let packet = Packet::parse(&buf)?;
-                println!("{:?}\n", packet);
+                println!("{:?} {:?}\n", from, packet);
             }
             Err(_) => todo!(),
         }
     }
-
-    Ok(())
 }
 /*
     let socket = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 5354))?;
-    let interfaces = interfaces();
-    let interfaces = interfaces
-        .iter()
-        .filter(|x| x.is_up() && !x.is_loopback() && !x.ips.is_empty());
-    for i in interfaces {
-        println!("{:?}", i);
-    }
 
 } */
 /*

@@ -6,5 +6,7 @@ edition = "2021"
 [dependencies]
 color-eyre = "0.6.3"
 pnet = "0.35.0"
+regex = "1.11.1"
 simple-dns = "0.9.1"
 socket2 = { version = "0.5.8", features = ["all"] }
+tokio = { version = "1.42.0", features = ["full"] }
