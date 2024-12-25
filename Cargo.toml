@@ -7,3 +7,4 @@ edition = "2021"
 color-eyre = "0.6.3"
 pnet = "0.35.0"
 simple-dns = "0.9.1"
+socket2 = { version = "0.5.8", features = ["all"] }
