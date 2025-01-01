@@ -4,11 +4,10 @@ use color_eyre::{eyre::bail, Result};
 use pnet::datalink::{interfaces, NetworkInterface};
 use pnet::ipnetwork::IpNetwork::{V4, V6};
 use regex::Regex;
-use serde::{Deserialize, Deserializer};
+use serde::Deserialize;
 use serde_json::from_reader;
 use simple_dns::Packet;
 use socket2::{Domain, Protocol, Socket, Type};
-use std::borrow::Cow;
 use std::fs::File;
 use std::io::BufReader;
 use std::{
