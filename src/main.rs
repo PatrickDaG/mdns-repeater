@@ -1,10 +1,16 @@
 const ADDR: Ipv4Addr = Ipv4Addr::new(224, 0, 0, 251);
+use clap::{command, Parser};
 use color_eyre::{eyre::bail, Result};
 use pnet::datalink::{interfaces, NetworkInterface};
 use pnet::ipnetwork::IpNetwork::{V4, V6};
 use regex::Regex;
+use serde::{Deserialize, Deserializer};
+use serde_json::from_reader;
 use simple_dns::Packet;
 use socket2::{Domain, Protocol, Socket, Type};
+use std::borrow::Cow;
+use std::fs::File;
+use std::io::BufReader;
 use std::{
     collections::HashSet,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
@@ -33,10 +39,14 @@ fn get_answers(packet: &Packet) -> HashSet<String> {
     packet.answers.iter().map(|x| x.name.to_string()).collect()
 }
 
+#[derive(Deserialize)]
 struct Rule {
+    #[serde(with = "serde_regex")]
     from: Regex,
     to: String,
+    #[serde(with = "serde_regex")]
     allow_questions: Regex,
+    #[serde(with = "serde_regex")]
     allow_answers: Regex,
 }
 
@@ -45,22 +55,27 @@ struct Iface {
     socket: socket2::Socket,
 }
 
+#[derive(Parser)]
+#[command(version, about)]
+struct Cli {
+    /// Path to the config file.
+    #[arg(short, long)]
+    config: String,
+}
+
+#[derive(Deserialize)]
+struct Config {
+    #[serde(with = "serde_regex")]
+    interfaces: Regex,
+    rules: Vec<Rule>,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
-    let mut rules = Vec::new();
-    rules.push(Rule {
-        from: Regex::new("lan-home")?,
-        to: "lan-services".to_string(),
-        allow_answers: Regex::new(".*")?,
-        allow_questions: Regex::new(".*")?,
-    });
-    rules.push(Rule {
-        from: Regex::new("lan-services")?,
-        to: "lan-home".to_string(),
-        allow_answers: Regex::new(".*")?,
-        allow_questions: Regex::new(".*")?,
-    });
-    let iface_reg = Regex::new(r"^lan.*$")?;
+    let cli = Cli::parse();
+    let file = File::open(cli.config)?;
+    let reader = BufReader::new(file);
+    let config: Config = from_reader(reader)?;
 
     let socket = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP))?;
     socket.set_reuse_address(true)?;
@@ -74,7 +89,10 @@ async fn main() -> Result<()> {
     let interfaces = interfaces
         .iter()
         .filter(|x| {
-            x.is_up() && !x.is_loopback() && !x.ips.is_empty() && iface_reg.is_match(&x.name)
+            x.is_up()
+                && !x.is_loopback()
+                && !x.ips.is_empty()
+                && config.interfaces.is_match(&x.name)
         })
         .map(|x| -> Result<Iface> {
             let socket = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP))?;
@@ -120,7 +138,7 @@ async fn main() -> Result<()> {
                     iface, from, questions, answers
                 );
                 let mut out = HashSet::new();
-                for r in &rules {
+                for r in &config.rules {
                     if r.from.is_match(&iface)
                         && (questions.iter().any(|x| r.allow_questions.is_match(x))
                             || answers.iter().any(|x| r.allow_answers.is_match(x)))
