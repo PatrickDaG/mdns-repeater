@@ -98,6 +98,7 @@
               };
             };
           };
+          packages.default = config.nci.outputs.mdns-relay.packages.release;
         };
     };
 }
