@@ -89,6 +89,7 @@
             drvConfig = {
               mkDerivation = {
                 nativeBuildInputs = [ pkgs.pkg-config ];
+                meta.mainProgram = "mdns-relay";
               };
             };
           };

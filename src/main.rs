@@ -115,15 +115,14 @@ fn main() -> Result<()> {
     let socket: UdpSocket = socket.into();
     loop {
         match socket.recv_from(&mut buf) {
-            Ok((l, from)) => {
-                let buf = &buf[0..l];
+            Ok((_l, from)) => {
                 if interfaces
                     .iter()
                     .any(|x| x.iface.ips.iter().any(|y| y.ip() == from.ip()))
                 {
                     continue;
                 }
-                let packet = Packet::parse(buf)?;
+                let packet = Packet::parse(&buf)?;
                 let iface = match get_iface(&from, &interfaces) {
                     Err(_) => {
                         error!("Invalid packet received from {}", from);
@@ -152,7 +151,7 @@ fn main() -> Result<()> {
                     if out.contains(&i.iface.name) {
                         debug!("sending packet on {}", i.iface.name);
                         let sock_addr = SocketAddrV4::new(ADDR, 5353).into();
-                        i.socket.send_to(buf, &sock_addr)?;
+                        i.socket.send_to(&buf, &sock_addr)?;
                     }
                 }
             }
