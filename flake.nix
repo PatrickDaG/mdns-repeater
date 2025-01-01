@@ -80,20 +80,14 @@
             path = ./.;
             numtideDevshell = "default";
           };
-          nci.crates.mdns-relay = rec {
-            #runtimeLibs = with pkgs; [
-            #];
+          nci.crates.mdns-relay = {
             depsDrvConfig = {
               mkDerivation = {
                 nativeBuildInputs = [ pkgs.pkg-config ];
-                buildInputs = with pkgs; [
-                  alsa-lib
-                ];
               };
             };
             drvConfig = {
               mkDerivation = {
-                inherit (depsDrvConfig.mkDerivation) buildInputs;
                 nativeBuildInputs = [ pkgs.pkg-config ];
               };
             };

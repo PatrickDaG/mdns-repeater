@@ -258,6 +258,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
 
 [[package]]
+name = "mdns-relay"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "color-eyre",
+ "pnet",
+ "regex",
+ "serde",
+ "serde_json",
+ "serde_regex",
+ "simple-dns",
+ "socket2",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "memchr"
 version = "2.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -458,23 +475,6 @@ name = "regex-syntax"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
-
-[[package]]
-name = "rust"
-version = "0.1.0"
-dependencies = [
- "clap",
- "color-eyre",
- "pnet",
- "regex",
- "serde",
- "serde_json",
- "serde_regex",
- "simple-dns",
- "socket2",
- "tracing",
- "tracing-subscriber",
-]
 
 [[package]]
 name = "rustc-demangle"
