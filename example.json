@@ -1,9 +1,9 @@
 {
-	"interfaces": "lan*",
+	"interfaces": "lan.*",
 	"rules": [
 		{
-			"from": "wan",
-			"to": "lan",
+			"from": "lan",
+			"to": "wan",
 			"allow_questions": "printer",
 			"allow_answers": ".*"
 		}

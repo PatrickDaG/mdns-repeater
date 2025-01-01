@@ -13,4 +13,5 @@ serde_json = "1.0.134"
 serde_regex = "1.1.0"
 simple-dns = "0.9.1"
 socket2 = { version = "0.5.8", features = ["all"] }
+tracing = "0.1.41"
 tracing-subscriber = "0.3.19"

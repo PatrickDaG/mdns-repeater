@@ -15,6 +15,7 @@ use std::{
     collections::HashSet,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
 };
+use tracing::{debug, error, info};
 
 fn get_iface(from: &SocketAddr, ifaces: &Vec<Iface>) -> Result<String> {
     for i in ifaces {
@@ -49,6 +50,7 @@ struct Rule {
     allow_answers: Regex,
 }
 
+#[derive(Debug)]
 struct Iface {
     iface: NetworkInterface,
     socket: socket2::Socket,
@@ -70,6 +72,7 @@ struct Config {
 }
 
 fn main() -> Result<()> {
+    tracing_subscriber::fmt::init();
     let cli = Cli::parse();
     let file = File::open(cli.config)?;
     let reader = BufReader::new(file);
@@ -81,7 +84,6 @@ fn main() -> Result<()> {
     let addr = SocketAddrV4::new(ADDR, 5353).into();
     socket.bind(&addr)?;
     socket.join_multicast_v4(&ADDR, &Ipv4Addr::UNSPECIFIED)?;
-    //socket.set_nonblocking(true)?;
 
     let interfaces = interfaces();
     let interfaces = interfaces
@@ -108,6 +110,7 @@ fn main() -> Result<()> {
             })
         })
         .collect::<Result<Vec<_>>>()?;
+    debug!("{:?}", interfaces);
     let mut buf = [0u8; 4096];
     let socket: UdpSocket = socket.into();
     loop {
@@ -123,14 +126,14 @@ fn main() -> Result<()> {
                 let packet = Packet::parse(buf)?;
                 let iface = match get_iface(&from, &interfaces) {
                     Err(_) => {
-                        eprintln!("Invalid packet received from {}", from);
+                        error!("Invalid packet received from {}", from);
                         continue;
                     }
                     Ok(name) => name,
                 };
                 let questions = get_questions(&packet);
                 let answers = get_answers(&packet);
-                println!(
+                debug!(
                     "received packet on interface {} from {} questioning {:?} and answering {:?}",
                     iface, from, questions, answers
                 );
@@ -144,15 +147,14 @@ fn main() -> Result<()> {
                     }
                 }
                 out.remove(&iface);
-                println!("relaying packet to {:?}", out);
+                debug!("relaying packet to {:?}", out);
                 for i in &interfaces {
                     if out.contains(&i.iface.name) {
-                        println!("sending packet on {}", i.iface.name);
+                        debug!("sending packet on {}", i.iface.name);
                         let sock_addr = SocketAddrV4::new(ADDR, 5353).into();
                         i.socket.send_to(buf, &sock_addr)?;
                     }
                 }
-                // socket.send_to(&buf, addr);
             }
             Err(_) => todo!(),
         }
