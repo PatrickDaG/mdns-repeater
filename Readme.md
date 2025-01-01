@@ -11,8 +11,8 @@ and answers, with this you can decide what queries get relayed and which get blo
 `mdns-relay -c <config>` where config is a json file containing these options: 
 ```json
 {
-    "interfaces: "A regex used to filter interfaces on which to listen, to exclude for example the public net or VPNs completely",
-    // A list of rules to be applied to incoming packages"
+    "interfaces": "A regex used to filter interfaces on which to listen, to exclude for example the public net or VPNs completely",
+    // A list of rules to be applied to incoming packages
     "rules" : [
         {
             "from": "A regex to match the incoming interface",

@@ -10,11 +10,11 @@ use simple_dns::Packet;
 use socket2::{Domain, Protocol, Socket, Type};
 use std::fs::File;
 use std::io::BufReader;
+use std::net::UdpSocket;
 use std::{
     collections::HashSet,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
 };
-use tokio::net::UdpSocket;
 
 fn get_iface(from: &SocketAddr, ifaces: &Vec<Iface>) -> Result<String> {
     for i in ifaces {
@@ -69,8 +69,7 @@ struct Config {
     rules: Vec<Rule>,
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     let cli = Cli::parse();
     let file = File::open(cli.config)?;
     let reader = BufReader::new(file);
@@ -109,20 +108,19 @@ async fn main() -> Result<()> {
             })
         })
         .collect::<Result<Vec<_>>>()?;
-    //println!("{:?}", interfaces);
-    let mut buf = [0; 1024];
-    let socket = UdpSocket::from_std(socket.into())?;
+    let mut buf = [0u8; 4096];
+    let socket: UdpSocket = socket.into();
     loop {
-        match socket.recv_from(&mut buf).await {
-            Ok((_l, from)) => {
+        match socket.recv_from(&mut buf) {
+            Ok((l, from)) => {
+                let buf = &buf[0..l];
                 if interfaces
                     .iter()
                     .any(|x| x.iface.ips.iter().any(|y| y.ip() == from.ip()))
                 {
                     continue;
                 }
-                let packet = Packet::parse(&buf)?;
-                //println!("{:?} {:?}\n", from, packet);
+                let packet = Packet::parse(buf)?;
                 let iface = match get_iface(&from, &interfaces) {
                     Err(_) => {
                         eprintln!("Invalid packet received from {}", from);
@@ -151,7 +149,7 @@ async fn main() -> Result<()> {
                     if out.contains(&i.iface.name) {
                         println!("sending packet on {}", i.iface.name);
                         let sock_addr = SocketAddrV4::new(ADDR, 5353).into();
-                        i.socket.send_to(&buf, &sock_addr)?;
+                        i.socket.send_to(buf, &sock_addr)?;
                     }
                 }
                 // socket.send_to(&buf, addr);
