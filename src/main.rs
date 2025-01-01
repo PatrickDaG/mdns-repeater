@@ -86,6 +86,7 @@ fn main() -> Result<()> {
     socket.join_multicast_v4(&ADDR, &Ipv4Addr::UNSPECIFIED)?;
 
     let interfaces = interfaces();
+    debug!("Found interface: {:?}", interfaces);
     let interfaces = interfaces
         .iter()
         .filter(|x| {
@@ -110,7 +111,7 @@ fn main() -> Result<()> {
             })
         })
         .collect::<Result<Vec<_>>>()?;
-    debug!("{:?}", interfaces);
+    debug!("Filtered interfaces: {:?}", interfaces);
     let mut buf = [0u8; 4096];
     let socket: UdpSocket = socket.into();
     loop {
@@ -125,7 +126,7 @@ fn main() -> Result<()> {
                 let packet = Packet::parse(&buf)?;
                 let iface = match get_iface(&from, &interfaces) {
                     Err(_) => {
-                        error!("Invalid packet received from {}", from);
+                        error!("No interface found for packet received from {}", from);
                         continue;
                     }
                     Ok(name) => name,
