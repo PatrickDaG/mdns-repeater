@@ -15,6 +15,7 @@ use std::{
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
 };
 use tracing::{debug, error, trace};
+use tracing_subscriber::EnvFilter;
 
 const ADDR: Ipv4Addr = Ipv4Addr::new(224, 0, 0, 251);
 
@@ -73,7 +74,10 @@ struct Config {
 }
 
 fn main() -> Result<()> {
-    tracing_subscriber::fmt().without_time().init();
+    tracing_subscriber::fmt()
+        .without_time()
+        .with_env_filter(EnvFilter::from_default_env())
+        .init();
     let cli = Cli::parse();
     let file = File::open(cli.config)?;
     let reader = BufReader::new(file);
