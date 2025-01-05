@@ -4,7 +4,6 @@
 		{
 			"from": "lan",
 			"to": "wan",
-			"allow_questions": "printer",
 			"allow_answers": ".*"
 		}
 	]

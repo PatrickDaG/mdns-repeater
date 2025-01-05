@@ -1,4 +1,3 @@
-const ADDR: Ipv4Addr = Ipv4Addr::new(224, 0, 0, 251);
 use clap::{command, Parser};
 use color_eyre::{eyre::bail, Result};
 use pnet::datalink::{interfaces, NetworkInterface};
@@ -15,7 +14,9 @@ use std::{
     collections::HashSet,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
 };
-use tracing::{debug, error, info};
+use tracing::{debug, error, trace};
+
+const ADDR: Ipv4Addr = Ipv4Addr::new(224, 0, 0, 251);
 
 fn get_iface(from: &SocketAddr, ifaces: &Vec<Iface>) -> Result<String> {
     for i in ifaces {
@@ -44,10 +45,10 @@ struct Rule {
     #[serde(with = "serde_regex")]
     from: Regex,
     to: String,
-    #[serde(with = "serde_regex")]
-    allow_questions: Regex,
-    #[serde(with = "serde_regex")]
-    allow_answers: Regex,
+    #[serde(with = "serde_regex", default)]
+    allow_questions: Option<Regex>,
+    #[serde(with = "serde_regex", default)]
+    allow_answers: Option<Regex>,
 }
 
 #[derive(Debug)]
@@ -72,7 +73,7 @@ struct Config {
 }
 
 fn main() -> Result<()> {
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt().without_time().init();
     let cli = Cli::parse();
     let file = File::open(cli.config)?;
     let reader = BufReader::new(file);
@@ -124,6 +125,7 @@ fn main() -> Result<()> {
                     continue;
                 }
                 let packet = Packet::parse(&buf)?;
+                trace!("Packet rec: {:?}", packet);
                 let iface = match get_iface(&from, &interfaces) {
                     Err(_) => {
                         error!("No interface found for packet received from {}", from);
@@ -140,8 +142,14 @@ fn main() -> Result<()> {
                 let mut out = HashSet::new();
                 for r in &config.rules {
                     if r.from.is_match(&iface)
-                        && (questions.iter().any(|x| r.allow_questions.is_match(x))
-                            || answers.iter().any(|x| r.allow_answers.is_match(x)))
+                        && (r
+                            .allow_questions
+                            .as_ref()
+                            .is_some_and(|r| questions.iter().any(|x| r.is_match(x)))
+                            || (r
+                                .allow_answers
+                                .as_ref()
+                                .is_some_and(|r| answers.iter().any(|x| r.is_match(x)))))
                     {
                         out.insert(r.to.clone());
                     }
@@ -150,7 +158,6 @@ fn main() -> Result<()> {
                 debug!("relaying packet to {:?}", out);
                 for i in &interfaces {
                     if out.contains(&i.iface.name) {
-                        debug!("sending packet on {}", i.iface.name);
                         let sock_addr = SocketAddrV4::new(ADDR, 5353).into();
                         i.socket.send_to(&buf, &sock_addr)?;
                     }
