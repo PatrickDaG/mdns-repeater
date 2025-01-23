@@ -8,7 +8,7 @@ Existing solution, such a avahi allow you to do this as well but only unconditio
 and answers, with this you can decide what queries get relayed and which get blocked.
 
 ## Usage
-`mdns-relay -c <config>` where config is a json file containing these options: 
+`mdns-repeater -c <config>` where config is a json file containing these options: 
 ```json
 {
     "interfaces": "A regex used to filter interfaces on which to listen, to exclude for example the public net or VPNs completely",

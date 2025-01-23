@@ -76,11 +76,11 @@
           };
 
           # Rust
-          nci.projects.mdns-relay = {
+          nci.projects.mdns-repeater = {
             path = ./.;
             numtideDevshell = "default";
           };
-          nci.crates.mdns-relay = {
+          nci.crates.mdns-repeater = {
             depsDrvConfig = {
               mkDerivation = {
                 nativeBuildInputs = [ pkgs.pkg-config ];
@@ -89,11 +89,11 @@
             drvConfig = {
               mkDerivation = {
                 nativeBuildInputs = [ pkgs.pkg-config ];
-                meta.mainProgram = "mdns-relay";
+                meta.mainProgram = "mdns-repeater";
               };
             };
           };
-          packages.default = config.nci.outputs.mdns-relay.packages.release;
+          packages.default = config.nci.outputs.mdns-repeater.packages.release;
         };
     };
 }
