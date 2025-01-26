@@ -45,7 +45,8 @@ fn get_answers(packet: &Packet) -> HashSet<String> {
 struct Rule {
     #[serde(with = "serde_regex")]
     from: Regex,
-    to: String,
+    #[serde(with = "serde_regex")]
+    to: Regex,
     #[serde(with = "serde_regex", default)]
     allow_questions: Option<Regex>,
     #[serde(with = "serde_regex", default)]
@@ -155,7 +156,11 @@ fn main() -> Result<()> {
                                 .as_ref()
                                 .is_some_and(|r| answers.iter().any(|x| r.is_match(x)))))
                     {
-                        out.insert(r.to.clone());
+                        let r = interfaces
+                            .iter()
+                            .filter(|x| r.to.is_match(&x.iface.name))
+                            .map(|x| x.iface.name.clone());
+                        out.extend(r);
                     }
                 }
                 out.remove(&iface);
