@@ -19,11 +19,22 @@ use tracing_subscriber::EnvFilter;
 
 const ADDR: Ipv4Addr = Ipv4Addr::new(224, 0, 0, 251);
 
-fn get_iface(from: &SocketAddr, ifaces: &Vec<Iface>) -> Result<String> {
-    for i in ifaces {
+fn get_iface(
+    from: &SocketAddr,
+    ifaces_filt: &Vec<Iface>,
+    ifaces: &Vec<&NetworkInterface>,
+) -> Result<(bool, String)> {
+    for i in ifaces_filt {
         for ip in i.iface.ips.iter() {
             if ip.contains(from.ip()) {
-                return Ok(i.iface.name.clone());
+                return Ok((false, i.iface.name.clone()));
+            }
+        }
+    }
+    for i in ifaces {
+        for ip in i.ips.iter() {
+            if ip.contains(from.ip()) {
+                return Ok((true, i.name.clone()));
             }
         }
     }
@@ -93,14 +104,11 @@ fn main() -> Result<()> {
 
     let interfaces = interfaces();
     debug!("Found interface: {:?}", interfaces);
-    let interfaces = interfaces
-        .iter()
-        .filter(|x| {
-            x.is_up()
-                && !x.is_loopback()
-                && !x.ips.is_empty()
-                && config.interfaces.is_match(&x.name)
-        })
+    let (interfaces_filt, interface): (Vec<_>, Vec<_>) = interfaces.iter().partition(|x| {
+        x.is_up() && !x.is_loopback() && !x.ips.is_empty() && config.interfaces.is_match(&x.name)
+    });
+    let interfaces_filt = interfaces_filt
+        .into_iter()
         .map(|x| -> Result<Iface> {
             let socket = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP))?;
             socket.set_reuse_address(true)?;
@@ -123,20 +131,29 @@ fn main() -> Result<()> {
     loop {
         match socket.recv_from(&mut buf) {
             Ok((_l, from)) => {
-                if interfaces
+                if interfaces_filt
                     .iter()
                     .any(|x| x.iface.ips.iter().any(|y| y.ip() == from.ip()))
+                    || interfaces
+                        .iter()
+                        .any(|x| x.ips.iter().any(|y| y.ip() == from.ip()))
                 {
                     continue;
                 }
                 let packet = Packet::parse(&buf)?;
                 trace!("Packet rec: {:?}", packet);
-                let iface = match get_iface(&from, &interfaces) {
+                let iface = match get_iface(&from, &interfaces_filt, &interface) {
                     Err(_) => {
                         error!("No interface found for packet received from {}", from);
                         continue;
                     }
-                    Ok(name) => name,
+                    Ok((filtered, name)) => {
+                        if filtered {
+                            debug!("Interface filtered for ip: {}", from);
+                            continue;
+                        }
+                        name
+                    }
                 };
                 let questions = get_questions(&packet);
                 let answers = get_answers(&packet);
@@ -156,7 +173,7 @@ fn main() -> Result<()> {
                                 .as_ref()
                                 .is_some_and(|r| answers.iter().any(|x| r.is_match(x)))))
                     {
-                        let r = interfaces
+                        let r = interfaces_filt
                             .iter()
                             .filter(|x| r.to.is_match(&x.iface.name))
                             .map(|x| x.iface.name.clone());
@@ -165,7 +182,7 @@ fn main() -> Result<()> {
                 }
                 out.remove(&iface);
                 debug!("relaying packet to {:?}", out);
-                for i in &interfaces {
+                for i in &interfaces_filt {
                     if out.contains(&i.iface.name) {
                         let sock_addr = SocketAddrV4::new(ADDR, 5353).into();
                         i.socket.send_to(&buf, &sock_addr)?;
